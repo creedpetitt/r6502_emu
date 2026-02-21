@@ -32,7 +32,7 @@ impl CPU {
         }
     }
 
-    fn fetch(&mut self) -> u8 {
+    pub fn fetch(&mut self) -> u8 {
         let address = self.program_counter;
         let data = self.bus.read(address);
         self.program_counter += 1;
