@@ -43,4 +43,20 @@ impl CPU {
         let opcode = self.fetch();
         crate::opcodes::execute(self, opcode);
     }
+
+    pub fn reset(&mut self) {
+        self.register_a = 0;
+        self.register_x = 0;
+        self.register_y = 0;
+        self.stack_pointer = 0xFD; // Traditional starting point for the stack
+
+        self.status = FLAG_INTERRUPT | FLAG_UNUSED;
+
+        // Read where the program starts from these two memory locations
+        let lo = self.bus.read(0xFFFC) as u16;
+        let hi = self.bus.read(0xFFFD) as u16;
+
+        // Set PC to that 16-bit address
+        self.program_counter = (hi << 8) | lo;
+    }
 }
