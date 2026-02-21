@@ -1,18 +1,35 @@
 use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE};
+use crate::addressing::{AddressingMode, get_operand_address};
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
     match opcode {
-        0xA9 => {
-            let value = cpu.fetch();
-            cpu.register_a = value;
+        // Load Accumulator
+        0xA9 => { // LDA Immediate
+            let addr = get_operand_address(cpu, &AddressingMode::Immediate);
+            cpu.register_a = cpu.bus.read(addr);
             update_zero_and_negative_flags(cpu, cpu.register_a);
         }
-        0x8D => {
-            let lo = cpu.fetch() as u16;
-            let hi = cpu.fetch() as u16;
-            let address = (hi << 8) | lo;
-            cpu.bus.write(address, cpu.register_a);
+
+        // Load X Register
+        0xA2 => { // LDX Immediate
+            let addr = get_operand_address(cpu, &AddressingMode::Immediate);
+            cpu.register_x = cpu.bus.read(addr);
+            update_zero_and_negative_flags(cpu, cpu.register_x);
         }
+
+        // Load Y Register
+        0xA0 => { // LDY Immediate
+            let addr = get_operand_address(cpu, &AddressingMode::Immediate);
+            cpu.register_y = cpu.bus.read(addr);
+            update_zero_and_negative_flags(cpu, cpu.register_y);
+        }
+
+        // Store Accumulator
+        0x8D => { // STA Absolute
+            let addr = get_operand_address(cpu, &AddressingMode::Absolute);
+            cpu.bus.write(addr, cpu.register_a);
+        }
+
         _ => { }
     }
 }
