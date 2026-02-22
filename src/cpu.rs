@@ -59,4 +59,10 @@ impl CPU {
         // Set PC to that 16-bit address
         self.program_counter = (hi << 8) | lo;
     }
+
+    pub fn fetch_u16(&mut self) -> u16 {
+        let lo = self.fetch() as u16;
+        let hi = self.fetch() as u16;
+        (hi << 8) | lo
+    }
 }
