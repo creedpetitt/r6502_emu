@@ -42,6 +42,30 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x8C => store(cpu, &AddressingMode::Absolute, cpu.register_y),
         0x94 => store(cpu, &AddressingMode::ZeroPageX, cpu.register_y),
 
+        // AND
+        0x29 => and(cpu, &AddressingMode::Immediate),
+        0x25 => and(cpu, &AddressingMode::ZeroPage),
+        0x35 => and(cpu, &AddressingMode::ZeroPageX),
+        0x2D => and(cpu, &AddressingMode::Absolute),
+        0x3D => and(cpu, &AddressingMode::AbsoluteX),
+        0x39 => and(cpu, &AddressingMode::AbsoluteY),
+
+        // ORA
+        0x09 => ora(cpu, &AddressingMode::Immediate),
+        0x05 => ora(cpu, &AddressingMode::ZeroPage),
+        0x15 => ora(cpu, &AddressingMode::ZeroPageX),
+        0x0D => ora(cpu, &AddressingMode::Absolute),
+        0x1D => ora(cpu, &AddressingMode::AbsoluteX),
+        0x19 => ora(cpu, &AddressingMode::AbsoluteY),
+
+        // EOR
+        0x49 => eor(cpu, &AddressingMode::Immediate),
+        0x45 => eor(cpu, &AddressingMode::ZeroPage),
+        0x55 => eor(cpu, &AddressingMode::ZeroPageX),
+        0x4D => eor(cpu, &AddressingMode::Absolute),
+        0x5D => eor(cpu, &AddressingMode::AbsoluteX),
+        0x59 => eor(cpu, &AddressingMode::AbsoluteY),
+
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
             update_zero_and_negative_flags(cpu, cpu.register_x);
@@ -90,6 +114,27 @@ fn load(cpu: &mut CPU, mode: &AddressingMode) -> u8 {
 fn store(cpu: &mut CPU, mode: &AddressingMode, value: u8) {
     let addr = get_operand_address(cpu, mode);
     cpu.bus.write(addr, value);
+}
+
+fn and(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    cpu.register_a &= value;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn ora(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    cpu.register_a |= value;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn eor(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    cpu.register_a ^= value;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
 }
 
 fn update_zero_and_negative_flags(cpu: &mut CPU, result: u8) {
