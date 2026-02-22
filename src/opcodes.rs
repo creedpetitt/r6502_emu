@@ -66,6 +66,35 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x5D => eor(cpu, &AddressingMode::AbsoluteX),
         0x59 => eor(cpu, &AddressingMode::AbsoluteY),
 
+        0xC9 => compare(cpu, &AddressingMode::Immediate, cpu.register_a),
+        0xC5 => compare(cpu, &AddressingMode::ZeroPage, cpu.register_a),
+        0xD5 => compare(cpu, &AddressingMode::ZeroPageX, cpu.register_a),
+        0xCD => compare(cpu, &AddressingMode::Absolute, cpu.register_a),
+        0xDD => compare(cpu, &AddressingMode::AbsoluteX, cpu.register_a),
+        0xD9 => compare(cpu, &AddressingMode::AbsoluteY, cpu.register_a),
+
+        // CPX
+        0xE0 => compare(cpu, &AddressingMode::Immediate, cpu.register_x),
+        0xE4 => compare(cpu, &AddressingMode::ZeroPage, cpu.register_x),
+        0xEC => compare(cpu, &AddressingMode::Absolute, cpu.register_x),
+
+        // CPY
+        0xC0 => compare(cpu, &AddressingMode::Immediate, cpu.register_y),
+        0xC4 => compare(cpu, &AddressingMode::ZeroPage, cpu.register_y),
+        0xCC => compare(cpu, &AddressingMode::Absolute, cpu.register_y),
+
+        // DEC
+        0xC6 => dec(cpu, &AddressingMode::ZeroPage),
+        0xD6 => dec(cpu, &AddressingMode::ZeroPageX),
+        0xCE => dec(cpu, &AddressingMode::Absolute),
+        0xDE => dec(cpu, &AddressingMode::AbsoluteX),
+
+        // INC
+        0xE6 => inc(cpu, &AddressingMode::ZeroPage),
+        0xF6 => inc(cpu, &AddressingMode::ZeroPageX),
+        0xEE => inc(cpu, &AddressingMode::Absolute),
+        0xFE => inc(cpu, &AddressingMode::AbsoluteX),
+
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
             update_zero_and_negative_flags(cpu, cpu.register_x);
@@ -138,6 +167,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0xB8 => {
             cpu.status &= !FLAG_OVERFLOW
         }
+        // NOP
+        0xEA => { /* Do nothing */ }
         _ => { }
     }
 }
@@ -152,6 +183,35 @@ fn load(cpu: &mut CPU, mode: &AddressingMode) -> u8 {
 fn store(cpu: &mut CPU, mode: &AddressingMode, value: u8) {
     let addr = get_operand_address(cpu, mode);
     cpu.bus.write(addr, value);
+}
+
+fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+
+    if compare_with >= value {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+    let result = compare_with.wrapping_sub(value);
+    update_zero_and_negative_flags(cpu, result);
+}
+
+fn inc(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let mut value = cpu.bus.read(addr);
+    value = value.wrapping_add(1);
+    cpu.bus.write(addr, value);
+    update_zero_and_negative_flags(cpu, value);
+}
+
+fn dec(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let mut value = cpu.bus.read(addr);
+    value = value.wrapping_sub(1);
+    cpu.bus.write(addr, value);
+    update_zero_and_negative_flags(cpu, value);
 }
 
 fn and(cpu: &mut CPU, mode: &AddressingMode) {
