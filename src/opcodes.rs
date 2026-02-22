@@ -7,28 +7,40 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0xA9 => cpu.register_a = load(cpu, &AddressingMode::Immediate),
         0xA5 => cpu.register_a = load(cpu, &AddressingMode::ZeroPage),
         0xAD => cpu.register_a = load(cpu, &AddressingMode::Absolute),
+        0xB5 => cpu.register_a = load(cpu, &AddressingMode::ZeroPageX),
+        0xBD => cpu.register_a = load(cpu, &AddressingMode::AbsoluteX),
+        0xB9 => cpu.register_a = load(cpu, &AddressingMode::AbsoluteY),
 
         // LDX
         0xA2 => cpu.register_x = load(cpu, &AddressingMode::Immediate),
         0xA6 => cpu.register_x = load(cpu, &AddressingMode::ZeroPage),
         0xAE => cpu.register_x = load(cpu, &AddressingMode::Absolute),
+        0xB6 => cpu.register_x = load(cpu, &AddressingMode::ZeroPageY),
+        0xBE => cpu.register_x = load(cpu, &AddressingMode::AbsoluteY),
 
         // LDY
         0xA0 => cpu.register_y = load(cpu, &AddressingMode::Immediate),
         0xA4 => cpu.register_y = load(cpu, &AddressingMode::ZeroPage),
         0xAC => cpu.register_y = load(cpu, &AddressingMode::Absolute),
+        0xB4 => cpu.register_y = load(cpu, &AddressingMode::ZeroPageX),
+        0xBC => cpu.register_y = load(cpu, &AddressingMode::AbsoluteX),
 
         // STA
         0x85 => store(cpu, &AddressingMode::ZeroPage, cpu.register_a),
         0x8D => store(cpu, &AddressingMode::Absolute, cpu.register_a),
+        0x95 => store(cpu, &AddressingMode::ZeroPageX, cpu.register_a),
+        0x9D => store(cpu, &AddressingMode::AbsoluteX, cpu.register_a),
+        0x99 => store(cpu, &AddressingMode::AbsoluteY, cpu.register_a),
 
         // STX
         0x86 => store(cpu, &AddressingMode::ZeroPage, cpu.register_x),
         0x8E => store(cpu, &AddressingMode::Absolute, cpu.register_x),
+        0x96 => store(cpu, &AddressingMode::ZeroPageY, cpu.register_x),
 
         // STY
         0x84 => store(cpu, &AddressingMode::ZeroPage, cpu.register_y),
         0x8C => store(cpu, &AddressingMode::Absolute, cpu.register_y),
+        0x94 => store(cpu, &AddressingMode::ZeroPageX, cpu.register_y),
 
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
