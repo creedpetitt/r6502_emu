@@ -56,7 +56,7 @@ impl CPU {
         let lo = self.bus.read(0xFFFC) as u16;
         let hi = self.bus.read(0xFFFD) as u16;
 
-        // Set PC to that 16-bit address
+        // Set PC to 16-bit address
         self.program_counter = (hi << 8) | lo;
     }
 
@@ -64,5 +64,24 @@ impl CPU {
         let lo = self.fetch() as u16;
         let hi = self.fetch() as u16;
         (hi << 8) | lo
+    }
+
+    pub fn load(&mut self, program: Vec<u8>) {
+        for i in 0..program.len() {
+            self.bus.write(0x8000 + i as u16, program[i]);
+        }
+        self.bus.write(0xFFFC, 0x00);
+        self.bus.write(0xFFFD, 0x80);
+    }
+
+    pub fn run(&mut self) {
+        self.reset();
+        loop {
+            let opcode = self.bus.read(self.program_counter);
+            self.step();
+            if opcode == 0x00 {
+                return;
+            }
+        }
     }
 }
