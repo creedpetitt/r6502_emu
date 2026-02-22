@@ -44,12 +44,12 @@ impl CPU {
         crate::opcodes::execute(self, opcode);
     }
 
-    fn push_stack(&mut self, data: u8) {
+    pub fn push_stack(&mut self, data: u8) {
         self.bus.write(0x0100 + self.stack_pointer as u16, data);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
-    fn pop_stack(&mut self) -> u8 {
+    pub fn pop_stack(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
         self.bus.read(0x0100 + self.stack_pointer as u16)
     }
