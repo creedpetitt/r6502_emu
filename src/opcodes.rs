@@ -84,6 +84,30 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
             cpu.bus.write(addr, cpu.register_y);
         }
 
+        // TAX (Transfer A to X)
+        0xAA => {
+            cpu.register_x = cpu.register_a;
+            update_zero_and_negative_flags(cpu, cpu.register_x);
+        }
+
+        // TAY (Transfer A to Y)
+        0xA8 => {
+            cpu.register_y = cpu.register_a;
+            update_zero_and_negative_flags(cpu, cpu.register_y);
+        }
+
+        // TXA (Transfer X to A)
+        0x8A => {
+            cpu.register_a = cpu.register_x;
+            update_zero_and_negative_flags(cpu, cpu.register_a);
+        }
+
+        // TYA (Transfer Y to A)
+        0x98 => {
+            cpu.register_a = cpu.register_y;
+            update_zero_and_negative_flags(cpu, cpu.register_a);
+        }
+
         _ => { }
     }
 }
