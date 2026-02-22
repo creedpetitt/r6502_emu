@@ -89,7 +89,6 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
             cpu.register_x = cpu.register_a;
             update_zero_and_negative_flags(cpu, cpu.register_x);
         }
-
         // TAY (Transfer A to Y)
         0xA8 => {
             cpu.register_y = cpu.register_a;
@@ -101,11 +100,32 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
             cpu.register_a = cpu.register_x;
             update_zero_and_negative_flags(cpu, cpu.register_a);
         }
-
         // TYA (Transfer Y to A)
         0x98 => {
             cpu.register_a = cpu.register_y;
             update_zero_and_negative_flags(cpu, cpu.register_a);
+        }
+
+        // INX
+        0xE8 => {
+            cpu.register_x = cpu.register_x.wrapping_add(1);
+            update_zero_and_negative_flags(cpu, cpu.register_x);
+        }
+        // INY
+        0xC8 => {
+            cpu.register_y = cpu.register_y.wrapping_add(1);
+            update_zero_and_negative_flags(cpu, cpu.register_y);
+        }
+
+        // DEX
+        0xCA => {
+            cpu.register_x = cpu.register_x.wrapping_sub(1);
+            update_zero_and_negative_flags(cpu, cpu.register_x);
+        }
+        // DEY
+        0x88 => {
+            cpu.register_y = cpu.register_y.wrapping_sub(1);
+            update_zero_and_negative_flags(cpu, cpu.register_y);
         }
 
         _ => { }
