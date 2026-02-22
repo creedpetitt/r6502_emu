@@ -44,6 +44,22 @@ impl CPU {
         crate::opcodes::execute(self, opcode);
     }
 
+    fn push_stack(&mut self, data: u8) {
+        self.bus.write(0x0100 + self.stack_pointer as u16, data);
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    }
+
+    fn pop_stack(&mut self) -> u8 {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+        self.bus.read(0x0100 + self.stack_pointer as u16)
+    }
+
+    pub fn fetch_u16(&mut self) -> u16 {
+        let lo = self.fetch() as u16;
+        let hi = self.fetch() as u16;
+        (hi << 8) | lo
+    }
+
     pub fn reset(&mut self) {
         self.register_a = 0;
         self.register_x = 0;
@@ -58,12 +74,6 @@ impl CPU {
 
         // Set PC to 16-bit address
         self.program_counter = (hi << 8) | lo;
-    }
-
-    pub fn fetch_u16(&mut self) -> u16 {
-        let lo = self.fetch() as u16;
-        let hi = self.fetch() as u16;
-        (hi << 8) | lo
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
