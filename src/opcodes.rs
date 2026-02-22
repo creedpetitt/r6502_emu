@@ -1,4 +1,4 @@
-use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE};
+use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL, FLAG_INTERRUPT, FLAG_OVERFLOW};
 use crate::addressing::{AddressingMode, get_operand_address};
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
@@ -99,7 +99,27 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
             cpu.register_y = cpu.register_y.wrapping_sub(1);
             update_zero_and_negative_flags(cpu, cpu.register_y);
         }
-
+        0x38 => {
+            cpu.status |= FLAG_CARRY
+        }
+        0xF8 => {
+            cpu.status |= FLAG_DECIMAL
+        }
+        0x78 => {
+            cpu.status |= FLAG_INTERRUPT
+        }
+        0x18 => {
+            cpu.status &= !FLAG_CARRY
+        }
+        0xD8 => {
+            cpu.status &= !FLAG_DECIMAL
+        }
+        0x58 => {
+            cpu.status &= !FLAG_INTERRUPT
+        }
+        0xB8 => {
+            cpu.status &= !FLAG_OVERFLOW
+        }
         _ => { }
     }
 }
