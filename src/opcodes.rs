@@ -1,4 +1,5 @@
-use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL, FLAG_INTERRUPT, FLAG_OVERFLOW, FLAG_UNUSED, FLAG_BREAK};
+use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL, FLAG_INTERRUPT,
+                 FLAG_OVERFLOW, FLAG_UNUSED, FLAG_BREAK};
 use crate::addressing::{AddressingMode, get_operand_address};
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
@@ -94,6 +95,10 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0xF6 => inc(cpu, &AddressingMode::ZeroPageX),
         0xEE => inc(cpu, &AddressingMode::Absolute),
         0xFE => inc(cpu, &AddressingMode::AbsoluteX),
+
+        // BIT
+        0x24 => bit(cpu, &AddressingMode::ZeroPage),
+        0x2C => bit(cpu, &AddressingMode::Absolute),
 
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
@@ -233,6 +238,30 @@ fn eor(cpu: &mut CPU, mode: &AddressingMode) {
     let value = cpu.bus.read(addr);
     cpu.register_a ^= value;
     update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn bit(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+
+    // Zero Logic
+    if (cpu.register_a & value) == 0 {
+        cpu.status |= FLAG_ZERO;
+    } else {
+        cpu.status &= !FLAG_ZERO;
+    }
+
+    if value & FLAG_NEGATIVE > 0 {
+        cpu.status |= FLAG_NEGATIVE;
+    } else {
+        cpu.status &= !FLAG_NEGATIVE;
+    }
+
+    if value & FLAG_OVERFLOW > 0 {
+        cpu.status |= FLAG_OVERFLOW;
+    } else {
+        cpu.status &= !FLAG_OVERFLOW;
+    }
 }
 
 fn update_zero_and_negative_flags(cpu: &mut CPU, result: u8) {
