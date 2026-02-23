@@ -32,15 +32,21 @@ impl CPU {
         }
     }
 
-    pub fn fetch(&mut self) -> u8 {
+    pub fn get_operand(&mut self) -> u8 {
         let address = self.program_counter;
         let data = self.bus.read(address);
         self.program_counter += 1;
         data
     }
 
+    pub fn fetch_u16(&mut self) -> u16 {
+        let lo = self.get_operand() as u16;
+        let hi = self.get_operand() as u16;
+        (hi << 8) | lo
+    }
+
     pub fn step(&mut self) {
-        let opcode = self.fetch();
+        let opcode = self.get_operand();
         crate::opcodes::execute(self, opcode);
     }
 
@@ -52,12 +58,6 @@ impl CPU {
     pub fn pop_stack(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
         self.bus.read(0x0100 + self.stack_pointer as u16)
-    }
-
-    pub fn fetch_u16(&mut self) -> u16 {
-        let lo = self.fetch() as u16;
-        let hi = self.fetch() as u16;
-        (hi << 8) | lo
     }
 
     pub fn reset(&mut self) {
