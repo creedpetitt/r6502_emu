@@ -1,7 +1,6 @@
-use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL, FLAG_INTERRUPT,
-                 FLAG_OVERFLOW, FLAG_UNUSED, FLAG_BREAK};
+use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL,
+                 FLAG_INTERRUPT, FLAG_OVERFLOW, FLAG_UNUSED, FLAG_BREAK};
 use crate::addressing::{AddressingMode, get_operand_address};
-use crate::addressing::AddressingMode::Relative;
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
     match opcode {
@@ -154,78 +153,31 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x4C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Absolute),
         0x6C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Indirect),
 
-        0xAA => { // TAX
-            cpu.register_x = cpu.register_a;
-            update_zero_and_negative_flags(cpu, cpu.register_x);
-        }
-        0xA8 => { // TAY
-            cpu.register_y = cpu.register_a;
-            update_zero_and_negative_flags(cpu, cpu.register_y);
-        }
-        0x8A => { // TXA
-            cpu.register_a = cpu.register_x;
-            update_zero_and_negative_flags(cpu, cpu.register_a);
-        }
-        0x98 => { // TYA
-            cpu.register_a = cpu.register_y;
-            update_zero_and_negative_flags(cpu, cpu.register_a);
-        }
+        0xAA => tax(cpu),
+        0xA8 => tay(cpu),
+        0x8A => txa(cpu),
+        0x98 => tya(cpu),
+        0x9A => txs(cpu),
+        0xBA => tsx(cpu),
 
-        0xE8 => { // INX
-            cpu.register_x = cpu.register_x.wrapping_add(1);
-            update_zero_and_negative_flags(cpu, cpu.register_x);
-        }
-        0xC8 => { // INY
-            cpu.register_y = cpu.register_y.wrapping_add(1);
-            update_zero_and_negative_flags(cpu, cpu.register_y);
-        }
-        0xCA => { // DEX
-            cpu.register_x = cpu.register_x.wrapping_sub(1);
-            update_zero_and_negative_flags(cpu, cpu.register_x);
-        }
-        0x88 => { // DEY
-            cpu.register_y = cpu.register_y.wrapping_sub(1);
-            update_zero_and_negative_flags(cpu, cpu.register_y);
-        }
-        0x48 => {
-            cpu.push_stack(cpu.register_a)
-        }
-        0x08 => {
-            let mut flags = cpu.status;
-            flags |= FLAG_UNUSED;
-            flags |= FLAG_BREAK;
-            cpu.push_stack(flags)
-        }
-        0x68 => {
-            cpu.register_a = cpu.pop_stack();
-            update_zero_and_negative_flags(cpu, cpu.register_a);
-        }
-        0x28 => {
-            cpu.status = cpu.pop_stack();
-            cpu.status &= !FLAG_BREAK;
-            cpu.status |= FLAG_UNUSED;
-        }
-        0x38 => {
-            cpu.status |= FLAG_CARRY
-        }
-        0xF8 => {
-            cpu.status |= FLAG_DECIMAL
-        }
-        0x78 => {
-            cpu.status |= FLAG_INTERRUPT
-        }
-        0x18 => {
-            cpu.status &= !FLAG_CARRY
-        }
-        0xD8 => {
-            cpu.status &= !FLAG_DECIMAL
-        }
-        0x58 => {
-            cpu.status &= !FLAG_INTERRUPT
-        }
-        0xB8 => {
-            cpu.status &= !FLAG_OVERFLOW
-        }
+        0xE8 => inx(cpu),
+        0xC8 => iny(cpu),
+        0xCA => dex(cpu),
+        0x88 => dey(cpu),
+
+        0x48 => pha(cpu),
+        0x08 => php(cpu),
+        0x68 => pla(cpu),
+        0x28 => plp(cpu),
+
+        0x38 => sec(cpu),
+        0xF8 => sed(cpu),
+        0x78 => sei(cpu),
+        0x18 => clc(cpu),
+        0xD8 => cld(cpu),
+        0x58 => cli(cpu),
+        0xB8 => clv(cpu),
+
         // NOP
         0xEA => { /* Do nothing */ }
         _ => { }
@@ -258,7 +210,7 @@ fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
 }
 
 fn branch(cpu: &mut CPU, condition: bool) {
-    let jump_address = get_operand_address(cpu, &Relative);
+    let jump_address = get_operand_address(cpu, &AddressingMode::Relative);
 
     if condition {
         cpu.program_counter = jump_address;
@@ -300,6 +252,77 @@ fn eor(cpu: &mut CPU, mode: &AddressingMode) {
     let value = cpu.bus.read(addr);
     cpu.register_a ^= value;
     update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn tax(cpu: &mut CPU) {
+    cpu.register_x = cpu.register_a;
+    update_zero_and_negative_flags(cpu, cpu.register_x);
+}
+
+fn tay(cpu: &mut CPU) {
+    cpu.register_y = cpu.register_a;
+    update_zero_and_negative_flags(cpu, cpu.register_y);
+}
+
+fn txa(cpu: &mut CPU) {
+    cpu.register_a = cpu.register_x;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn tya(cpu: &mut CPU) {
+    cpu.register_a = cpu.register_y;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn txs(cpu: &mut CPU) {
+    cpu.stack_pointer = cpu.register_x;
+}
+
+fn tsx(cpu: &mut CPU) {
+    cpu.register_x = cpu.stack_pointer;
+    update_zero_and_negative_flags(cpu, cpu.register_x);
+}
+
+fn inx(cpu: &mut CPU) {
+    cpu.register_x = cpu.register_x.wrapping_add(1);
+    update_zero_and_negative_flags(cpu, cpu.register_x);
+}
+
+fn iny(cpu: &mut CPU) {
+    cpu.register_y = cpu.register_y.wrapping_add(1);
+    update_zero_and_negative_flags(cpu, cpu.register_y);
+}
+
+fn dex(cpu: &mut CPU) {
+    cpu.register_x = cpu.register_x.wrapping_sub(1);
+    update_zero_and_negative_flags(cpu, cpu.register_x);
+}
+
+fn dey(cpu: &mut CPU) {
+    cpu.register_y = cpu.register_y.wrapping_sub(1);
+    update_zero_and_negative_flags(cpu, cpu.register_y);
+}
+
+fn pha(cpu: &mut CPU) {
+    cpu.push_stack(cpu.register_a);
+}
+
+fn php(cpu: &mut CPU) {
+    let mut flags = cpu.status;
+    flags |= FLAG_UNUSED;
+    flags |= FLAG_BREAK;
+    cpu.push_stack(flags);
+}
+
+fn pla(cpu: &mut CPU) {
+    cpu.register_a = cpu.pop_stack();
+    update_zero_and_negative_flags(cpu, cpu.register_a);
+}
+
+fn plp(cpu: &mut CPU) {
+    cpu.status = cpu.pop_stack();
+    cpu.status &= !FLAG_BREAK;
+    cpu.status |= FLAG_UNUSED;
 }
 
 fn bit(cpu: &mut CPU, mode: &AddressingMode) {
@@ -445,4 +468,32 @@ fn update_zero_and_negative_flags(cpu: &mut CPU, result: u8) {
     } else {
         cpu.status &= !FLAG_NEGATIVE;
     }
+}
+
+fn sec(cpu: &mut CPU) {
+    cpu.status |= FLAG_CARRY;
+}
+
+fn sed(cpu: &mut CPU) {
+    cpu.status |= FLAG_DECIMAL;
+}
+
+fn sei(cpu: &mut CPU) {
+    cpu.status |= FLAG_INTERRUPT;
+}
+
+fn clc(cpu: &mut CPU) {
+    cpu.status &= !FLAG_CARRY;
+}
+
+fn cld(cpu: &mut CPU) {
+    cpu.status &= !FLAG_DECIMAL;
+}
+
+fn cli(cpu: &mut CPU) {
+    cpu.status &= !FLAG_INTERRUPT;
+}
+
+fn clv(cpu: &mut CPU) {
+    cpu.status &= !FLAG_OVERFLOW;
 }
