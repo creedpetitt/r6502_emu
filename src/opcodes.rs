@@ -68,6 +68,34 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x5D => eor(cpu, &AddressingMode::AbsoluteX),
         0x59 => eor(cpu, &AddressingMode::AbsoluteY),
 
+        // ASL
+        0x0A => cpu.register_a = shift_left(cpu, cpu.register_a),
+        0x06 => asl(cpu, &AddressingMode::ZeroPage),
+        0x16 => asl(cpu, &AddressingMode::ZeroPageX),
+        0x0E => asl(cpu, &AddressingMode::Absolute),
+        0x1E => asl(cpu, &AddressingMode::AbsoluteX),
+
+        // LSR
+        0x4A => cpu.register_a = shift_right(cpu, cpu.register_a),
+        0x46 => lsr(cpu, &AddressingMode::ZeroPage),
+        0x56 => lsr(cpu, &AddressingMode::ZeroPageX),
+        0x4E => lsr(cpu, &AddressingMode::Absolute),
+        0x5E => lsr(cpu, &AddressingMode::AbsoluteX),
+
+        // ROL
+        0x2A => cpu.register_a = rotate_left(cpu, cpu.register_a),
+        0x26 => rol(cpu, &AddressingMode::ZeroPage),
+        0x36 => rol(cpu, &AddressingMode::ZeroPageX),
+        0x2E => rol(cpu, &AddressingMode::Absolute),
+        0x3E => rol(cpu, &AddressingMode::AbsoluteX),
+
+        // ROR
+        0x6A => cpu.register_a = rotate_right(cpu, cpu.register_a),
+        0x66 => ror(cpu, &AddressingMode::ZeroPage),
+        0x76 => ror(cpu, &AddressingMode::ZeroPageX),
+        0x6E => ror(cpu, &AddressingMode::Absolute),
+        0x7E => ror(cpu, &AddressingMode::AbsoluteX),
+
         0xC9 => compare(cpu, &AddressingMode::Immediate, cpu.register_a),
         0xC5 => compare(cpu, &AddressingMode::ZeroPage, cpu.register_a),
         0xD5 => compare(cpu, &AddressingMode::ZeroPageX, cpu.register_a),
@@ -291,6 +319,90 @@ fn bit(cpu: &mut CPU, mode: &AddressingMode) {
     } else {
         cpu.status &= !FLAG_OVERFLOW;
     }
+}
+
+fn asl(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    let result = shift_left(cpu, value);
+    cpu.bus.write(addr, result);
+}
+
+fn lsr(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    let result = shift_right(cpu, value);
+    cpu.bus.write(addr, result);
+}
+
+fn rol(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    let result = rotate_left(cpu, value);
+    cpu.bus.write(addr, result);
+}
+
+fn ror(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    let result = rotate_right(cpu, value);
+    cpu.bus.write(addr, result);
+}
+
+fn shift_left(cpu: &mut CPU, value: u8) -> u8 {
+    if value & 0x80 != 0 {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+    let result = value << 1;
+    update_zero_and_negative_flags(cpu, result);
+    result
+}
+
+fn shift_right(cpu: &mut CPU, value: u8) -> u8 {
+    if value & 0x01 != 0 {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+    let result = value >> 1;
+    update_zero_and_negative_flags(cpu, result);
+    result
+}
+
+fn rotate_left(cpu: &mut CPU, value: u8) -> u8 {
+    let old_carry = cpu.status & FLAG_CARRY != 0;
+
+    if value & 0x80 != 0 {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+    let mut result = value << 1;
+
+    if old_carry {
+        result |= 0x01;
+    }
+    update_zero_and_negative_flags(cpu, result);
+    result
+}
+
+fn rotate_right(cpu: &mut CPU, value: u8) -> u8 {
+    let old_carry = cpu.status & FLAG_CARRY != 0;
+
+    if value & 0x01 != 0 {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+    let mut result = value >> 1;
+
+    if old_carry {
+        result |= 0x80;
+    }
+    update_zero_and_negative_flags(cpu, result);
+    result
 }
 
 fn update_zero_and_negative_flags(cpu: &mut CPU, result: u8) {
