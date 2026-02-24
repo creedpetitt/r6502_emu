@@ -1,6 +1,7 @@
 use crate::cpu::{CPU, FLAG_ZERO, FLAG_NEGATIVE, FLAG_CARRY, FLAG_DECIMAL, FLAG_INTERRUPT,
                  FLAG_OVERFLOW, FLAG_UNUSED, FLAG_BREAK};
 use crate::addressing::{AddressingMode, get_operand_address};
+use crate::addressing::AddressingMode::Relative;
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
     match opcode {
@@ -99,6 +100,23 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         // BIT
         0x24 => bit(cpu, &AddressingMode::ZeroPage),
         0x2C => bit(cpu, &AddressingMode::Absolute),
+
+        // BNE
+        0xD0 => branch(cpu, cpu.status & FLAG_ZERO == 0),
+        // BEQ
+        0xF0 => branch(cpu, cpu.status & FLAG_ZERO > 0),
+        // BCC
+        0x90 => branch(cpu, cpu.status & FLAG_CARRY == 0),
+        // BCS
+        0xB0 => branch(cpu, cpu.status & FLAG_CARRY > 0),
+        // BPL
+        0x10 => branch(cpu, cpu.status & FLAG_NEGATIVE == 0),
+        // BMI
+        0x30 => branch(cpu, cpu.status & FLAG_NEGATIVE > 0),
+        // BVC
+        0x50 => branch(cpu, cpu.status & FLAG_OVERFLOW == 0),
+        // BVS
+        0x70 => branch(cpu, cpu.status & FLAG_OVERFLOW > 0),
 
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
@@ -203,6 +221,14 @@ fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
     update_zero_and_negative_flags(cpu, result);
 }
 
+fn branch(cpu: &mut CPU, condition: bool) {
+    let jump_address = get_operand_address(cpu, &Relative);
+
+    if condition {
+        cpu.program_counter = jump_address;
+    }
+}
+
 fn inc(cpu: &mut CPU, mode: &AddressingMode) {
     let addr = get_operand_address(cpu, mode);
     let mut value = cpu.bus.read(addr);
@@ -244,7 +270,6 @@ fn bit(cpu: &mut CPU, mode: &AddressingMode) {
     let addr = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
 
-    // Zero Logic
     if (cpu.register_a & value) == 0 {
         cpu.status |= FLAG_ZERO;
     } else {
