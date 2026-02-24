@@ -44,6 +44,10 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x8C => store(cpu, &AddressingMode::Absolute, cpu.register_y),
         0x94 => store(cpu, &AddressingMode::ZeroPageX, cpu.register_y),
 
+        // Subroutines
+        0x20 => jsr(cpu),
+        0x60 => rts(cpu),
+        0x40 => rti(cpu),
         // AND
         0x29 => and(cpu, &AddressingMode::Immediate),
         0x25 => and(cpu, &AddressingMode::ZeroPage),
@@ -347,6 +351,30 @@ fn ror(cpu: &mut CPU, mode: &AddressingMode) {
     let value = cpu.bus.read(addr);
     let result = rotate_right(cpu, value);
     cpu.bus.write(addr, result);
+}
+
+fn jsr(cpu: &mut CPU) {
+    let target_addr = cpu.fetch_u16();
+    let return_addr = cpu.program_counter - 1;
+    cpu.push_stack(((return_addr >> 8) & 0xFF) as u8);
+    cpu.push_stack((return_addr & 0xFF) as u8);
+    cpu.program_counter = target_addr;
+}
+
+fn rts(cpu: &mut CPU) {
+    let lo = cpu.pop_stack() as u16;
+    let hi = cpu.pop_stack() as u16;
+    cpu.program_counter = (hi << 8 | lo) + 1;
+}
+
+fn rti(cpu: &mut CPU) {
+    cpu.status = cpu.pop_stack();
+    cpu.status &= !FLAG_BREAK;
+    cpu.status |= FLAG_UNUSED;
+
+    let lo = cpu.pop_stack() as u16;
+    let hi = cpu.pop_stack() as u16;
+    cpu.program_counter = (hi << 8) | lo;
 }
 
 fn shift_left(cpu: &mut CPU, value: u8) -> u8 {
