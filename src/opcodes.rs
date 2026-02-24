@@ -118,6 +118,10 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         // BVS
         0x70 => branch(cpu, cpu.status & FLAG_OVERFLOW > 0),
 
+        // JMP
+        0x4C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Absolute),
+        0x6C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Indirect),
+
         0xAA => { // TAX
             cpu.register_x = cpu.register_a;
             update_zero_and_negative_flags(cpu, cpu.register_x);
