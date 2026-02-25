@@ -71,6 +71,26 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x5D => eor(cpu, &AddressingMode::AbsoluteX),
         0x59 => eor(cpu, &AddressingMode::AbsoluteY),
 
+        // ADC
+        0x69 => adc(cpu, &AddressingMode::Immediate),
+        0x65 => adc(cpu, &AddressingMode::ZeroPage),
+        0x75 => adc(cpu, &AddressingMode::ZeroPageX),
+        0x6D => adc(cpu, &AddressingMode::Absolute),
+        0x7D => adc(cpu, &AddressingMode::AbsoluteX),
+        0x79 => adc(cpu, &AddressingMode::AbsoluteY),
+        0x61 => adc(cpu, &AddressingMode::IndirectX),
+        0x71 => adc(cpu, &AddressingMode::IndirectY),
+
+        // SBC
+        0xE9 => sbc(cpu, &AddressingMode::Immediate),
+        0xE5 => sbc(cpu, &AddressingMode::ZeroPage),
+        0xF5 => sbc(cpu, &AddressingMode::ZeroPageX),
+        0xED => sbc(cpu, &AddressingMode::Absolute),
+        0xFD => sbc(cpu, &AddressingMode::AbsoluteX),
+        0xF9 => sbc(cpu, &AddressingMode::AbsoluteY),
+        0xE1 => sbc(cpu, &AddressingMode::IndirectX),
+        0xF1 => sbc(cpu, &AddressingMode::IndirectY),
+
         // ASL
         0x0A => cpu.register_a = shift_left(cpu, cpu.register_a),
         0x06 => asl(cpu, &AddressingMode::ZeroPage),
@@ -132,21 +152,13 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x24 => bit(cpu, &AddressingMode::ZeroPage),
         0x2C => bit(cpu, &AddressingMode::Absolute),
 
-        // BNE
         0xD0 => branch(cpu, cpu.status & FLAG_ZERO == 0),
-        // BEQ
         0xF0 => branch(cpu, cpu.status & FLAG_ZERO > 0),
-        // BCC
         0x90 => branch(cpu, cpu.status & FLAG_CARRY == 0),
-        // BCS
         0xB0 => branch(cpu, cpu.status & FLAG_CARRY > 0),
-        // BPL
         0x10 => branch(cpu, cpu.status & FLAG_NEGATIVE == 0),
-        // BMI
         0x30 => branch(cpu, cpu.status & FLAG_NEGATIVE > 0),
-        // BVC
         0x50 => branch(cpu, cpu.status & FLAG_OVERFLOW == 0),
-        // BVS
         0x70 => branch(cpu, cpu.status & FLAG_OVERFLOW > 0),
 
         // JMP
@@ -496,4 +508,42 @@ fn cli(cpu: &mut CPU) {
 
 fn clv(cpu: &mut CPU) {
     cpu.status &= !FLAG_OVERFLOW;
+}
+
+fn adc(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    add_to_accumulator(cpu, value);
+}
+
+fn sbc(cpu: &mut CPU, mode: &AddressingMode) {
+    let addr = get_operand_address(cpu, mode);
+    let value = cpu.bus.read(addr);
+    add_to_accumulator(cpu, value ^ 0xFF);
+}
+
+fn add_to_accumulator(cpu: &mut CPU, value: u8) {
+    let a = cpu.register_a as u16;
+    let val = value as u16;
+    let carry = if cpu.status & FLAG_CARRY != 0 { 1 } else { 0 };
+
+    let sum = a + val + carry;
+
+    if sum > 0xFF {
+        cpu.status |= FLAG_CARRY;
+    } else {
+        cpu.status &= !FLAG_CARRY;
+    }
+
+    let result = sum as u8;
+    
+    // Overflow logic
+    if (value ^ result) & (cpu.register_a ^ result) & 0x80 != 0 {
+        cpu.status |= FLAG_OVERFLOW;
+    } else {
+        cpu.status &= !FLAG_OVERFLOW;
+    }
+
+    cpu.register_a = result;
+    update_zero_and_negative_flags(cpu, cpu.register_a);
 }
