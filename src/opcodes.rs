@@ -11,6 +11,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0xB5 => cpu.register_a = load(cpu, &AddressingMode::ZeroPageX),
         0xBD => cpu.register_a = load(cpu, &AddressingMode::AbsoluteX),
         0xB9 => cpu.register_a = load(cpu, &AddressingMode::AbsoluteY),
+        0xA1 => cpu.register_a = load(cpu, &AddressingMode::IndirectX),
+        0xB1 => cpu.register_a = load(cpu, &AddressingMode::IndirectY),
 
         // LDX
         0xA2 => cpu.register_x = load(cpu, &AddressingMode::Immediate),
@@ -32,6 +34,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x95 => store(cpu, &AddressingMode::ZeroPageX, cpu.register_a),
         0x9D => store(cpu, &AddressingMode::AbsoluteX, cpu.register_a),
         0x99 => store(cpu, &AddressingMode::AbsoluteY, cpu.register_a),
+        0x81 => store(cpu, &AddressingMode::IndirectX, cpu.register_a),
+        0x91 => store(cpu, &AddressingMode::IndirectY, cpu.register_a),
 
         // STX
         0x86 => store(cpu, &AddressingMode::ZeroPage, cpu.register_x),
@@ -54,6 +58,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x2D => and(cpu, &AddressingMode::Absolute),
         0x3D => and(cpu, &AddressingMode::AbsoluteX),
         0x39 => and(cpu, &AddressingMode::AbsoluteY),
+        0x21 => and(cpu, &AddressingMode::IndirectX),
+        0x31 => and(cpu, &AddressingMode::IndirectY),
 
         // ORA
         0x09 => ora(cpu, &AddressingMode::Immediate),
@@ -62,6 +68,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x0D => ora(cpu, &AddressingMode::Absolute),
         0x1D => ora(cpu, &AddressingMode::AbsoluteX),
         0x19 => ora(cpu, &AddressingMode::AbsoluteY),
+        0x01 => ora(cpu, &AddressingMode::IndirectX),
+        0x11 => ora(cpu, &AddressingMode::IndirectY),
 
         // EOR
         0x49 => eor(cpu, &AddressingMode::Immediate),
@@ -70,6 +78,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x4D => eor(cpu, &AddressingMode::Absolute),
         0x5D => eor(cpu, &AddressingMode::AbsoluteX),
         0x59 => eor(cpu, &AddressingMode::AbsoluteY),
+        0x41 => eor(cpu, &AddressingMode::IndirectX),
+        0x51 => eor(cpu, &AddressingMode::IndirectY),
 
         // ADC
         0x69 => adc(cpu, &AddressingMode::Immediate),
@@ -125,6 +135,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0xCD => compare(cpu, &AddressingMode::Absolute, cpu.register_a),
         0xDD => compare(cpu, &AddressingMode::AbsoluteX, cpu.register_a),
         0xD9 => compare(cpu, &AddressingMode::AbsoluteY, cpu.register_a),
+        0xC1 => compare(cpu, &AddressingMode::IndirectX, cpu.register_a),
+        0xD1 => compare(cpu, &AddressingMode::IndirectY, cpu.register_a),
 
         // CPX
         0xE0 => compare(cpu, &AddressingMode::Immediate, cpu.register_x),
@@ -287,6 +299,7 @@ fn tya(cpu: &mut CPU) {
 }
 
 fn txs(cpu: &mut CPU) {
+
     cpu.stack_pointer = cpu.register_x;
 }
 
