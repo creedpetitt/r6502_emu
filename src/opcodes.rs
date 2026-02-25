@@ -4,6 +4,9 @@ use crate::addressing::{AddressingMode, get_operand_address};
 
 pub fn execute(cpu: &mut CPU, opcode: u8) {
     match opcode {
+        // BRK
+        0x00 => brk(cpu),
+
         // LDA
         0xA9 => cpu.register_a = load(cpu, &AddressingMode::Immediate),
         0xA5 => cpu.register_a = load(cpu, &AddressingMode::ZeroPage),
@@ -521,6 +524,24 @@ fn cli(cpu: &mut CPU) {
 
 fn clv(cpu: &mut CPU) {
     cpu.status &= !FLAG_OVERFLOW;
+}
+
+fn brk(cpu: &mut CPU) {
+    // BRK pushes PC + 1, not PC + 2 like JSR
+    let return_addr = cpu.program_counter + 1;
+    cpu.push_stack(((return_addr >> 8) & 0xFF) as u8);
+    cpu.push_stack((return_addr & 0xFF) as u8);
+
+    let mut status = cpu.status;
+    status |= FLAG_UNUSED;
+    status |= FLAG_BREAK;
+    cpu.push_stack(status);
+
+    cpu.status |= FLAG_INTERRUPT;
+
+    let lo = cpu.bus.read(0xFFFE) as u16;
+    let hi = cpu.bus.read(0xFFFF) as u16;
+    cpu.program_counter = (hi << 8) | lo;
 }
 
 fn adc(cpu: &mut CPU, mode: &AddressingMode) {
