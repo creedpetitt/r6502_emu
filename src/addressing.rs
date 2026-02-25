@@ -13,6 +13,8 @@ pub enum AddressingMode {
     Indirect,
     IndirectX,
     IndirectY,
+    // Implied - handled inline
+    // Accumulator - handled inline
 }
 
 pub fn get_operand_address(cpu: &mut CPU, mode: &AddressingMode) -> u16 {
