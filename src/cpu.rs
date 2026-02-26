@@ -112,9 +112,11 @@ impl CPU {
     pub fn run(&mut self) {
         self.reset();
         loop {
-            let opcode = self.bus.read(self.program_counter);
+            let previous_pc = self.program_counter;
+            let _opcode = self.bus.read(self.program_counter);
             self.step();
-            if opcode == 0x00 {
+
+            if self.program_counter == previous_pc || self.program_counter == 0x0000 {
                 return;
             }
         }
