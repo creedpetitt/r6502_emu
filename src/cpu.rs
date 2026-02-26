@@ -20,7 +20,7 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(bus: Bus) -> Self {
+    pub fn new() -> Self {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -28,7 +28,7 @@ impl CPU {
             status: 0,
             stack_pointer: 0xFD,
             program_counter: 0,
-            bus,
+            bus: Bus::new(),
         }
     }
 
@@ -81,6 +81,12 @@ impl CPU {
         }
         self.bus.write(0xFFFC, 0x00);
         self.bus.write(0xFFFD, 0x80);
+    }
+
+    pub fn load_and_run(&mut self, program: Vec<u8>) {
+        self.load(program);
+        self.reset();
+        self.run();
     }
 
     fn hardware_interrupt(&mut self, vector_addr: u16) {
