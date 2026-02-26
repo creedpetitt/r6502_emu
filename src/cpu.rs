@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::bus::Bus;
 
 pub const FLAG_CARRY: u8     = 0b0000_0001;
