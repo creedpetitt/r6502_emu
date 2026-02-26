@@ -167,14 +167,14 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x24 => bit(cpu, &AddressingMode::ZeroPage),
         0x2C => bit(cpu, &AddressingMode::Absolute),
 
-        0xD0 => branch(cpu, cpu.status & FLAG_ZERO == 0),
-        0xF0 => branch(cpu, cpu.status & FLAG_ZERO > 0),
-        0x90 => branch(cpu, cpu.status & FLAG_CARRY == 0),
-        0xB0 => branch(cpu, cpu.status & FLAG_CARRY > 0),
-        0x10 => branch(cpu, cpu.status & FLAG_NEGATIVE == 0),
-        0x30 => branch(cpu, cpu.status & FLAG_NEGATIVE > 0),
-        0x50 => branch(cpu, cpu.status & FLAG_OVERFLOW == 0),
-        0x70 => branch(cpu, cpu.status & FLAG_OVERFLOW > 0),
+        0xD0 => branch(cpu, !cpu.has_flag(FLAG_ZERO)),
+        0xF0 => branch(cpu, cpu.has_flag(FLAG_ZERO)),
+        0x90 => branch(cpu, !cpu.has_flag(FLAG_CARRY)),
+        0xB0 => branch(cpu, cpu.has_flag(FLAG_CARRY)),
+        0x10 => branch(cpu, !cpu.has_flag(FLAG_NEGATIVE)),
+        0x30 => branch(cpu, cpu.has_flag(FLAG_NEGATIVE)),
+        0x50 => branch(cpu, !cpu.has_flag(FLAG_OVERFLOW)),
+        0x70 => branch(cpu, cpu.has_flag(FLAG_OVERFLOW)),
 
         // JMP
         0x4C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Absolute),
@@ -227,11 +227,7 @@ fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
     let addr = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
 
-    if compare_with >= value {
-        cpu.status |= FLAG_CARRY;
-    } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+    cpu.set_flag(FLAG_CARRY, compare_with >= value);
     let result = compare_with.wrapping_sub(value);
     update_zero_and_negative_flags(cpu, result);
 }
@@ -357,23 +353,9 @@ fn bit(cpu: &mut CPU, mode: &AddressingMode) {
     let addr = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
 
-    if (cpu.register_a & value) == 0 {
-        cpu.status |= FLAG_ZERO;
-    } else {
-        cpu.status &= !FLAG_ZERO;
-    }
-
-    if value & FLAG_NEGATIVE > 0 {
-        cpu.status |= FLAG_NEGATIVE;
-    } else {
-        cpu.status &= !FLAG_NEGATIVE;
-    }
-
-    if value & FLAG_OVERFLOW > 0 {
-        cpu.status |= FLAG_OVERFLOW;
-    } else {
-        cpu.status &= !FLAG_OVERFLOW;
-    }
+    cpu.set_flag(FLAG_ZERO, (cpu.register_a & value) == 0);
+    cpu.set_flag(FLAG_NEGATIVE, value & FLAG_NEGATIVE > 0);
+    cpu.set_flag(FLAG_OVERFLOW, value & FLAG_OVERFLOW > 0);
 }
 
 fn asl(cpu: &mut CPU, mode: &AddressingMode) {
@@ -429,35 +411,22 @@ fn rti(cpu: &mut CPU) {
 }
 
 fn shift_left(cpu: &mut CPU, value: u8) -> u8 {
-    if value & 0x80 != 0 {
-        cpu.status |= FLAG_CARRY;
-    } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+    cpu.set_flag(FLAG_CARRY, value & 0x80 != 0);
     let result = value << 1;
     update_zero_and_negative_flags(cpu, result);
     result
 }
 
 fn shift_right(cpu: &mut CPU, value: u8) -> u8 {
-    if value & 0x01 != 0 {
-        cpu.status |= FLAG_CARRY;
-    } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+    cpu.set_flag(FLAG_CARRY, value & 0x01 != 0);
     let result = value >> 1;
     update_zero_and_negative_flags(cpu, result);
     result
 }
 
 fn rotate_left(cpu: &mut CPU, value: u8) -> u8 {
-    let old_carry = cpu.status & FLAG_CARRY != 0;
-
-    if value & 0x80 != 0 {
-        cpu.status |= FLAG_CARRY;
-    } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+    let old_carry = cpu.has_flag(FLAG_CARRY);
+    cpu.set_flag(FLAG_CARRY, value & 0x80 != 0);
     let mut result = value << 1;
 
     if old_carry {
@@ -468,13 +437,8 @@ fn rotate_left(cpu: &mut CPU, value: u8) -> u8 {
 }
 
 fn rotate_right(cpu: &mut CPU, value: u8) -> u8 {
-    let old_carry = cpu.status & FLAG_CARRY != 0;
-
-    if value & 0x01 != 0 {
-        cpu.status |= FLAG_CARRY;
-    } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+    let old_carry = cpu.has_flag(FLAG_CARRY);
+    cpu.set_flag(FLAG_CARRY, value & 0x01 != 0);
     let mut result = value >> 1;
 
     if old_carry {
@@ -485,17 +449,8 @@ fn rotate_right(cpu: &mut CPU, value: u8) -> u8 {
 }
 
 fn update_zero_and_negative_flags(cpu: &mut CPU, result: u8) {
-    if result == 0 {
-        cpu.status |= FLAG_ZERO;
-    } else {
-        cpu.status &= !FLAG_ZERO;
-    }
-
-    if result & 0b1000_0000 != 0 {
-        cpu.status |= FLAG_NEGATIVE;
-    } else {
-        cpu.status &= !FLAG_NEGATIVE;
-    }
+    cpu.set_flag(FLAG_ZERO, result == 0);
+    cpu.set_flag(FLAG_NEGATIVE, result & 0b1000_0000 != 0);
 }
 
 fn sec(cpu: &mut CPU) {
@@ -547,65 +502,66 @@ fn brk(cpu: &mut CPU) {
 fn adc(cpu: &mut CPU, mode: &AddressingMode) {
     let addr = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
-    add_to_accumulator(cpu, value);
+    
+    let a = cpu.register_a;
+    let carry = if cpu.has_flag(FLAG_CARRY) { 1 } else { 0 };
+
+    if cpu.has_flag(FLAG_DECIMAL) {
+        let mut lo = (a & 0x0F) + (value & 0x0F) + carry;
+        let mut hi = (a >> 4) + (value >> 4) + if lo > 0x09 { 1 } else { 0 };
+
+        let bin_sum = (a as u16) + (value as u16) + carry as u16;
+        cpu.set_flag(FLAG_OVERFLOW, (a ^ bin_sum as u8) & (value ^ bin_sum as u8) & 0x80 == 0);
+
+        if lo > 0x09 { lo = (lo + 0x06) & 0x0F; }
+        if hi > 0x09 { hi += 0x06; }
+
+        let result = (hi << 4) | lo;
+        cpu.set_flag(FLAG_CARRY, hi > 0x0F);
+
+        cpu.register_a = result;
+        update_zero_and_negative_flags(cpu, bin_sum as u8);
+    } else {
+        let sum = (a as u16) + (value as u16) + carry as u16;
+        cpu.set_flag(FLAG_CARRY, sum > 0xFF);
+
+        let result = sum as u8;
+        cpu.set_flag(FLAG_OVERFLOW, (value ^ result) & (a ^ result) & 0x80 != 0);
+
+        cpu.register_a = result;
+        update_zero_and_negative_flags(cpu, cpu.register_a);
+    }
 }
 
 fn sbc(cpu: &mut CPU, mode: &AddressingMode) {
     let addr = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
-    add_to_accumulator(cpu, value ^ 0xFF);
-}
-
-fn add_to_accumulator(cpu: &mut CPU, value: u8) {
+    
     let a = cpu.register_a;
-    let carry = if cpu.status & FLAG_CARRY != 0 { 1 } else { 0 };
+    let carry = if cpu.has_flag(FLAG_CARRY) { 1 } else { 0 };
 
-    if cpu.status & FLAG_DECIMAL != 0 {
-        let mut lo = (a & 0x0F) + (value & 0x0F) + carry;
-        let mut hi = (a >> 4) + (value >> 4) + if lo > 0x09 { 1 } else { 0 };
+    if cpu.has_flag(FLAG_DECIMAL) {
+        let bin_diff = (a as u16).wrapping_sub(value as u16).wrapping_sub(1 - carry as u16);
+        let mut lo = (a & 0x0F).wrapping_sub(value & 0x0F).wrapping_sub(1 - carry);
+        let mut hi = (a >> 4).wrapping_sub(value >> 4).wrapping_sub(if (lo as i8) < 0 { 1 } else { 0 });
 
-        let bin_sum = (a as u16) + (value as u16) + carry as u16;
-        if (a ^ bin_sum as u8) & (value ^ bin_sum as u8) & 0x80 != 0 {
-            cpu.status |= FLAG_OVERFLOW;
-        } else {
-            cpu.status &= !FLAG_OVERFLOW;
-        }
+        cpu.set_flag(FLAG_OVERFLOW, (a ^ bin_diff as u8) & (a ^ value) & 0x80 != 0);
+        cpu.set_flag(FLAG_CARRY, bin_diff < 0x100);
 
-        if lo > 0x09 {
-            lo = (lo + 0x06) & 0x0F;
-        }
-        
-        if hi > 0x09 {
-            hi += 0x06;
-        }
+        if (lo as i8) < 0 { lo = lo.wrapping_sub(0x06) & 0x0F; }
+        if (hi as i8) < 0 { hi = hi.wrapping_sub(0x06) & 0x0F; }
 
         let result = (hi << 4) | lo;
-        
-        if hi > 0x0F {
-            cpu.status |= FLAG_CARRY;
-        } else {
-            cpu.status &= !FLAG_CARRY;
-        }
-
         cpu.register_a = result;
-        update_zero_and_negative_flags(cpu, cpu.register_a);
-
+        update_zero_and_negative_flags(cpu, bin_diff as u8);
     } else {
-        let sum = (a as u16) + (value as u16) + (carry as u16);
+        let inverted_val = value ^ 0xFF;
+        let sum = (a as u16) + (inverted_val as u16) + carry as u16;
 
-        if sum > 0xFF {
-            cpu.status |= FLAG_CARRY;
-        } else {
-            cpu.status &= !FLAG_CARRY;
-        }
+        cpu.set_flag(FLAG_CARRY, sum > 0xFF);
 
         let result = sum as u8;
-        
-        if (value ^ result) & (a ^ result) & 0x80 != 0 {
-            cpu.status |= FLAG_OVERFLOW;
-        } else {
-            cpu.status &= !FLAG_OVERFLOW;
-        }
+        cpu.set_flag(FLAG_OVERFLOW, (inverted_val ^ result) & (a ^ result) & 0x80 != 0);
 
         cpu.register_a = result;
         update_zero_and_negative_flags(cpu, cpu.register_a);

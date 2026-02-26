@@ -99,6 +99,18 @@ impl CPU {
         self.program_counter = (hi << 8) | lo;
     }
 
+    pub fn has_flag(&self, flag: u8) -> bool {
+        self.status & flag != 0
+    }
+
+    pub fn set_flag(&mut self, flag: u8, condition: bool) {
+        if condition {
+            self.status |= flag;
+        } else {
+            self.status &= !flag;
+        }
+    }
+
     pub fn nmi(&mut self) {
         self.hardware_interrupt(0xFFFA);
     }
