@@ -3,6 +3,7 @@ mod bus;
 mod opcodes;
 mod addressing;
 mod trace;
+mod cycles;
 
 use std::env;
 use std::fs;
