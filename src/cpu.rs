@@ -72,7 +72,6 @@ impl CPU {
         let lo = self.bus.read(0xFFFC) as u16;
         let hi = self.bus.read(0xFFFD) as u16;
 
-        // Set PC to 16-bit address
         self.program_counter = (hi << 8) | lo;
     }
 
@@ -82,6 +81,32 @@ impl CPU {
         }
         self.bus.write(0xFFFC, 0x00);
         self.bus.write(0xFFFD, 0x80);
+    }
+
+    fn hardware_interrupt(&mut self, vector_addr: u16) {
+        self.push_stack((self.program_counter >> 8) as u8);
+        self.push_stack((self.program_counter & 0xFF) as u8);
+
+        let mut status = self.status;
+        status |= FLAG_UNUSED;
+        status &= !FLAG_BREAK;
+        self.push_stack(status);
+
+        self.status |= FLAG_INTERRUPT;
+
+        let lo = self.bus.read(vector_addr) as u16;
+        let hi = self.bus.read(vector_addr + 1) as u16;
+        self.program_counter = (hi << 8) | lo;
+    }
+
+    pub fn nmi(&mut self) {
+        self.hardware_interrupt(0xFFFA);
+    }
+
+    pub fn irq(&mut self) {
+        if self.status & FLAG_INTERRUPT == 0 {
+            self.hardware_interrupt(0xFFFE);
+        }
     }
 
     pub fn run(&mut self) {
