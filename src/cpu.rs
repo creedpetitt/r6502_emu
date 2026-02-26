@@ -19,6 +19,7 @@ pub struct CPU {
     pub stack_pointer: u8,     // 8-bit Stack Pointer (S)
     pub program_counter: u16,  // 16-bit Program Counter (PC)
     pub bus: Bus,              // The physical connection to Memory
+    pub cycles: u64,           // Tracks the number of clock cycles executed
 }
 
 impl CPU {
@@ -31,6 +32,7 @@ impl CPU {
             stack_pointer: 0xFD,
             program_counter: 0,
             bus: Bus::new(),
+            cycles: 0,
         }
     }
 
@@ -49,6 +51,7 @@ impl CPU {
 
     pub fn step(&mut self) {
         let opcode = self.get_operand();
+        self.cycles += crate::cycles::OP_CYCLES[opcode as usize] as u64;
         crate::opcodes::execute(self, opcode);
     }
 
