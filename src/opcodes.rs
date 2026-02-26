@@ -557,27 +557,57 @@ fn sbc(cpu: &mut CPU, mode: &AddressingMode) {
 }
 
 fn add_to_accumulator(cpu: &mut CPU, value: u8) {
-    let a = cpu.register_a as u16;
-    let val = value as u16;
+    let a = cpu.register_a;
     let carry = if cpu.status & FLAG_CARRY != 0 { 1 } else { 0 };
 
-    let sum = a + val + carry;
+    if cpu.status & FLAG_DECIMAL != 0 {
+        let mut lo = (a & 0x0F) + (value & 0x0F) + carry;
+        let mut hi = (a >> 4) + (value >> 4) + if lo > 0x09 { 1 } else { 0 };
 
-    if sum > 0xFF {
-        cpu.status |= FLAG_CARRY;
+        let bin_sum = (a as u16) + (value as u16) + carry as u16;
+        if (a ^ bin_sum as u8) & (value ^ bin_sum as u8) & 0x80 != 0 {
+            cpu.status |= FLAG_OVERFLOW;
+        } else {
+            cpu.status &= !FLAG_OVERFLOW;
+        }
+
+        if lo > 0x09 {
+            lo = (lo + 0x06) & 0x0F;
+        }
+        
+        if hi > 0x09 {
+            hi += 0x06;
+        }
+
+        let result = (hi << 4) | lo;
+        
+        if hi > 0x0F {
+            cpu.status |= FLAG_CARRY;
+        } else {
+            cpu.status &= !FLAG_CARRY;
+        }
+
+        cpu.register_a = result;
+        update_zero_and_negative_flags(cpu, cpu.register_a);
+
     } else {
-        cpu.status &= !FLAG_CARRY;
-    }
+        let sum = (a as u16) + (value as u16) + (carry as u16);
 
-    let result = sum as u8;
-    
-    // Overflow logic
-    if (value ^ result) & (cpu.register_a ^ result) & 0x80 != 0 {
-        cpu.status |= FLAG_OVERFLOW;
-    } else {
-        cpu.status &= !FLAG_OVERFLOW;
-    }
+        if sum > 0xFF {
+            cpu.status |= FLAG_CARRY;
+        } else {
+            cpu.status &= !FLAG_CARRY;
+        }
 
-    cpu.register_a = result;
-    update_zero_and_negative_flags(cpu, cpu.register_a);
+        let result = sum as u8;
+        
+        if (value ^ result) & (a ^ result) & 0x80 != 0 {
+            cpu.status |= FLAG_OVERFLOW;
+        } else {
+            cpu.status &= !FLAG_OVERFLOW;
+        }
+
+        cpu.register_a = result;
+        update_zero_and_negative_flags(cpu, cpu.register_a);
+    }
 }
