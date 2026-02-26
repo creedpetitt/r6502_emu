@@ -177,8 +177,8 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
         0x70 => branch(cpu, cpu.has_flag(FLAG_OVERFLOW)),
 
         // JMP
-        0x4C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Absolute),
-        0x6C => cpu.program_counter = get_operand_address(cpu, &AddressingMode::Indirect),
+        0x4C => jmp(cpu, &AddressingMode::Absolute),
+        0x6C => jmp(cpu, &AddressingMode::Indirect),
 
         0xAA => tax(cpu),
         0xA8 => tay(cpu),
@@ -212,19 +212,21 @@ pub fn execute(cpu: &mut CPU, opcode: u8) {
 }
 
 fn load(cpu: &mut CPU, mode: &AddressingMode) -> u8 {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     update_zero_and_negative_flags(cpu, value);
     value
 }
 
 fn store(cpu: &mut CPU, mode: &AddressingMode, value: u8) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     cpu.bus.write(addr, value);
 }
 
 fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
 
     cpu.set_flag(FLAG_CARRY, compare_with >= value);
@@ -232,16 +234,25 @@ fn compare(cpu: &mut CPU, mode: &AddressingMode, compare_with: u8) {
     update_zero_and_negative_flags(cpu, result);
 }
 
+fn jmp(cpu: &mut CPU, mode: &AddressingMode) {
+    let (addr, _) = get_operand_address(cpu, mode);
+    cpu.program_counter = addr;
+}
+
 fn branch(cpu: &mut CPU, condition: bool) {
-    let jump_address = get_operand_address(cpu, &AddressingMode::Relative);
+    let (jump_address, page_crossed) = get_operand_address(cpu, &AddressingMode::Relative);
 
     if condition {
+        cpu.cycles += 1;
+        if page_crossed {
+            cpu.cycles += 1;
+        }
         cpu.program_counter = jump_address;
     }
 }
 
 fn inc(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let mut value = cpu.bus.read(addr);
     value = value.wrapping_add(1);
     cpu.bus.write(addr, value);
@@ -249,7 +260,7 @@ fn inc(cpu: &mut CPU, mode: &AddressingMode) {
 }
 
 fn dec(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let mut value = cpu.bus.read(addr);
     value = value.wrapping_sub(1);
     cpu.bus.write(addr, value);
@@ -257,21 +268,24 @@ fn dec(cpu: &mut CPU, mode: &AddressingMode) {
 }
 
 fn and(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     cpu.register_a &= value;
     update_zero_and_negative_flags(cpu, cpu.register_a);
 }
 
 fn ora(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     cpu.register_a |= value;
     update_zero_and_negative_flags(cpu, cpu.register_a);
 }
 
 fn eor(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     cpu.register_a ^= value;
     update_zero_and_negative_flags(cpu, cpu.register_a);
@@ -350,7 +364,7 @@ fn plp(cpu: &mut CPU) {
 }
 
 fn bit(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
 
     cpu.set_flag(FLAG_ZERO, (cpu.register_a & value) == 0);
@@ -359,28 +373,28 @@ fn bit(cpu: &mut CPU, mode: &AddressingMode) {
 }
 
 fn asl(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
     let result = shift_left(cpu, value);
     cpu.bus.write(addr, result);
 }
 
 fn lsr(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
     let result = shift_right(cpu, value);
     cpu.bus.write(addr, result);
 }
 
 fn rol(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
     let result = rotate_left(cpu, value);
     cpu.bus.write(addr, result);
 }
 
 fn ror(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, _) = get_operand_address(cpu, mode);
     let value = cpu.bus.read(addr);
     let result = rotate_right(cpu, value);
     cpu.bus.write(addr, result);
@@ -500,7 +514,8 @@ fn brk(cpu: &mut CPU) {
 }
 
 fn adc(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     
     let a = cpu.register_a;
@@ -534,7 +549,8 @@ fn adc(cpu: &mut CPU, mode: &AddressingMode) {
 }
 
 fn sbc(cpu: &mut CPU, mode: &AddressingMode) {
-    let addr = get_operand_address(cpu, mode);
+    let (addr, page_crossed) = get_operand_address(cpu, mode);
+    if page_crossed { cpu.cycles += 1; }
     let value = cpu.bus.read(addr);
     
     let a = cpu.register_a;
